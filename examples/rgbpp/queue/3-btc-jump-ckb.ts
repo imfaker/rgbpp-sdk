@@ -13,8 +13,9 @@ import {
   bitcoin,
   ECPair,
 } from '@rgbpp-sdk/btc';
-import { BtcAssetsApi } from '@rgbpp-sdk/service'
+import { BtcAssetsApi, BtcAssetsApiError } from '@rgbpp-sdk/service'
 import { addressToScript, getTransactionSize } from '@nervosnetwork/ckb-sdk-utils';
+import { json } from 'stream/consumers';
 
 // CKB SECP256K1 private key
 // const CKB_TEST_PRIVATE_KEY = '0x0000000000000000000000000000000000000000000000000000000000000001';
@@ -51,10 +52,10 @@ const jumpFromBtcToCkb = async ({ rgbppLockArgsList, toCkbAddress, transferAmoun
     ckbIndexerUrl: 'https://testnet.ckb.dev/indexer',
   });
   const isMainnet = false;
-  const address = privateKeyToAddress(CKB_TEST_PRIVATE_KEY, {
-    prefix: isMainnet ? AddressPrefix.Mainnet : AddressPrefix.Testnet,
-  });
-  console.log('ckb address: ', address);
+  // const address = privateKeyToAddress(CKB_TEST_PRIVATE_KEY, {
+  //   prefix: isMainnet ? AddressPrefix.Mainnet : AddressPrefix.Testnet,
+  // });
+  // console.log('ckb address: ', address);
 
   const network = isMainnet ? bitcoin.networks.bitcoin : bitcoin.networks.testnet;
   const keyPair = ECPair.fromPrivateKey(Buffer.from(BTC_TEST_PRIVATE_KEY, 'hex'), { network });
@@ -103,13 +104,16 @@ const jumpFromBtcToCkb = async ({ rgbppLockArgsList, toCkbAddress, transferAmoun
     ckbCollector: collector,
     from: btcAddress!,
     source,
+    feeRate: 300
   });
   psbt.signAllInputs(keyPair);
   psbt.finalizeAllInputs();
 
   const btcTx = psbt.extractTransaction();
-  const { txid: btcTxId } = await service.sendBtcTransaction(btcTx.toHex());
 
+  const hex = btcTx.toHex();
+  console.log('BTC hex: ', hex);
+  const { txid: btcTxId } = await service.sendBtcTransaction(btcTx.toHex());
   console.log('BTC TxId: ', btcTxId);
 
   try {
@@ -136,8 +140,8 @@ const jumpFromBtcToCkb = async ({ rgbppLockArgsList, toCkbAddress, transferAmoun
 jumpFromBtcToCkb({
   // If the `3-btc-transfer.ts` has been executed, the BTC txId should be the new generated BTC txId by the `3-btc-transfer.ts`
   // Otherwise the BTC txId should be same as the the BTC txId of the `2-ckb-jump-btc.ts`
-  rgbppLockArgsList: [buildRgbppLockArgs(2, '4d63f7e7ec3704bfa9a07395de274223c3c7b7b9a160406d10c1b4cbd565fd9f')],
-  toCkbAddress: 'ckt1qyq8dmrgx20k9900fjzsjas3ts5jd5sss29suvrp5f',
+  rgbppLockArgsList: [buildRgbppLockArgs(1, '0da21986bfa46b38f903c3d9aac9bdb56a23e090369747d04abc7adcf505f760')],
+  toCkbAddress: 'ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqtka35r98mzjhh5epgfwcg4c2fx6ggg9zcz2f9mz',
   // To simplify, keep the transferAmount the same as 2-ckb-jump-btc
   transferAmount: BigInt(150_0000_0000),
 });

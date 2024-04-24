@@ -68,8 +68,8 @@ const jumpFromCkbToBtc = async ({ outIndex, btcTxId }: { outIndex: number; btcTx
 
 
 jumpFromCkbToBtc({
-  outIndex: 2,
-  btcTxId: '4d63f7e7ec3704bfa9a07395de274223c3c7b7b9a160406d10c1b4cbd565fd9f',
+  outIndex: 1,
+  btcTxId: '0da21986bfa46b38f903c3d9aac9bdb56a23e090369747d04abc7adcf505f760',
 });
 
 //已使用

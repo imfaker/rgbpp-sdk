@@ -94,6 +94,7 @@ const jumpFromBtcToCkb = async ({ rgbppLockArgsList, toCkbAddress, transferAmoun
     ckbCollector: collector,
     from: btcAddress!,
     source,
+    feeRate: 80
   });
   psbt.signAllInputs(keyPair);
   psbt.finalizeAllInputs();
