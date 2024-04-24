@@ -75,7 +75,7 @@ export const genBtcTransferCkbVirtualTx = async ({
   if (!isTypeAssetSupported(xudtType, isMainnet)) {
     throw new TypeAssetNotSupportedError('The type script asset is not supported now');
   }
-
+  // rgbppLockArgsList =【return `0x${u32ToLe(outIndex)}${remove0x(reverseHex(btcTxId))}`】;
   const rgbppLocks = rgbppLockArgsList.map((args) => genRgbppLockScript(args, isMainnet));
   let rgbppCells: IndexerCell[] = [];
   for await (const rgbppLock of rgbppLocks) {
@@ -100,6 +100,7 @@ export const genBtcTransferCkbVirtualTx = async ({
         since: '0x0',
       });
       sumInputsCapacity += BigInt(rgbppCell.output.capacity);
+      // 核心就是 查找到xudt类型的rgbppcell，然后将lock脚本 换成新的  utxo 的交易id和 index，但是现在 交易id 在buildPreLockArgs用的RGBPP_TX_ID_PLACEHOLDER。
       outputs.push({
         ...rgbppCell.output,
         // The Vouts[0] for OP_RETURN and Vouts[1], Vouts[2], ... for RGBPP assets
@@ -109,6 +110,7 @@ export const genBtcTransferCkbVirtualTx = async ({
     }
     changeCapacity = BigInt(rgbppCells[rgbppCells.length - 1].output.capacity);
   } else {
+    ///默认会走这里， 合并cell输出
     const collectResult = collector.collectUdtInputs({
       liveCells: rgbppCells,
       needAmount: transferAmount,
@@ -123,12 +125,14 @@ export const genBtcTransferCkbVirtualTx = async ({
 
     changeCapacity = sumInputsCapacity;
     // The Vouts[0] for OP_RETURN and Vouts[1], Vouts[2], ... for RGBPP assets
+    // index1 给转给别人的rgb++资产
     outputs.push({
       lock: genRgbppLockScript(buildPreLockArgs(1), isMainnet),
       type: xudtType,
       capacity: append0x(rpbppCellCapacity.toString(16)),
     });
     if (collectResult.sumAmount > transferAmount) {
+      //index 2 给还留给自己的找零rgb++资产
       outputs.push({
         lock: genRgbppLockScript(buildPreLockArgs(2), isMainnet),
         type: xudtType,
@@ -166,6 +170,7 @@ export const genBtcTransferCkbVirtualTx = async ({
   };
 
   if (!needPaymasterCell) {
+    //没有代付
     const txSize =
       getTransactionSize(ckbRawTx) + (witnessLockPlaceholderSize ?? estimateWitnessSize(rgbppLockArgsList));
     const estimatedTxFee = calculateTransactionFee(txSize, ckbFeeRate);

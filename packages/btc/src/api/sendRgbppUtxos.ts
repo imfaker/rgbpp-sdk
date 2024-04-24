@@ -52,6 +52,8 @@ export async function sendRgbppUtxosBuilder(props: SendRgbppUtxosProps): Promise
     // 2. utxo can be found via the DataSource.getUtxo() API
     // 3. utxo.scriptPk == addressToScriptPk(props.from)
     // 4. utxo is not duplicated in the inputs
+
+    //先根据虚拟ckb交易里的 ckbInput.previousOutput找到对应的utxo，再将这些utxo放入 btcInputs
     if (isRgbppLock) {
       const args = unpackRgbppLockArgs(ckbLiveCell.output.lock.args);
       const utxo = await props.source.getUtxo(args.btcTxid, args.outIndex, props.onlyConfirmedUtxos);
@@ -126,7 +128,7 @@ export async function sendRgbppUtxosBuilder(props: SendRgbppUtxosProps): Promise
   if (props.commitment !== calculatedCommitment) {
     throw new TxBuildError(ErrorCodes.CKB_UNMATCHED_COMMITMENT);
   }
-
+  /// 加入commitment output 和 paymaster outpuf if needed
   const mergedBtcOutputs = (() => {
     const merged: InitOutput[] = [];
 
@@ -150,7 +152,7 @@ export async function sendRgbppUtxosBuilder(props: SendRgbppUtxosProps): Promise
 
     return merged;
   })();
-
+  console.log('mergedBtcOutputs', JSON.stringify(mergedBtcOutputs, null, 2));
   return await createSendUtxosBuilder({
     inputs: btcInputs,
     outputs: mergedBtcOutputs,
@@ -165,6 +167,7 @@ export async function sendRgbppUtxosBuilder(props: SendRgbppUtxosProps): Promise
 }
 
 export async function sendRgbppUtxos(props: SendRgbppUtxosProps): Promise<bitcoin.Psbt> {
+  console.log('props', JSON.stringify(props, null, 2));
   const { builder } = await sendRgbppUtxosBuilder(props);
   return builder.toPsbt();
 }

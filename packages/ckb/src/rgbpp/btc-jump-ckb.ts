@@ -76,7 +76,7 @@ export const genBtcJumpCkbVirtualTx = async ({
   if (isLockArgsSizeExceeded(toLock.args)) {
     throw new Error('The lock script size of the to ckb address is too large');
   }
-
+  //这里用的btctimelock
   let changeCapacity = sumInputsCapacity;
   const outputs: CKBComponents.CellOutput[] = [
     {
@@ -87,6 +87,7 @@ export const genBtcJumpCkbVirtualTx = async ({
   ];
 
   if (sumAmount > transferAmount) {
+    ///index 1  给还留在1层的rgbpp资产
     outputs.push({
       // The Vouts[0] for OP_RETURN and Vouts[1] for RGBPP assets, BTC time cells don't need btc tx out_index
       lock: genRgbppLockScript(buildPreLockArgs(1), isMainnet),

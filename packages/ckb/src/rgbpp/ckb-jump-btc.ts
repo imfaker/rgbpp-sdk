@@ -28,6 +28,7 @@ export const genCkbJumpBtcVirtualTx = async ({
   collector,
   xudtTypeBytes,
   fromCkbAddress,
+  //return `0x${u32ToLe(outIndex)}${remove0x(reverseHex(btcTxId))}`
   toRgbppLockArgs,
   transferAmount,
   witnessLockPlaceholderSize,
@@ -56,6 +57,8 @@ export const genCkbJumpBtcVirtualTx = async ({
 
   const outputs: CKBComponents.CellOutput[] = [
     {
+      //return `0x${u32ToLe(outIndex)}${remove0x(reverseHex(btcTxId))}84150a285b9b8d9083981e8bbdf89a25e95ab11801abc749b0d5f44ded20dbb0逆序 再加index = 0x02000000b0db20ed4df4d5b049c7ab0118b15ae9259af8bd8b1e9883908d9b5b280a1584`
+
       lock: genRgbppLockScript(toRgbppLockArgs, isMainnet),
       type: xudtType,
       capacity: append0x(rpbppCellCapacity.toString(16)),
@@ -220,3 +223,78 @@ export const genCkbBatchJumpBtcVirtualTx = async ({
 
   return ckbRawTx;
 };
+
+// {
+//   "version": "0x0",
+//   "cellDeps": [
+//     {
+//       "outPoint": {
+//         "txHash": "0xbf6fb538763efec2a70a6a3dcb7242787087e1030c4e7d86585bc63a9d337f5f",
+//         "index": "0x0"
+//       },
+//       "depType": "code"
+//     }
+//   ],
+//   "headerDeps": [],
+//   "inputs": [
+//     {
+//       "previousOutput": {
+//         "txHash": "0xea01cd5221612da1ee70aef6feab6b89d0fe37da83ee49a38df4c63219e50c40",
+//         "index": "0x2"
+//       },
+//       "since": "0x0"
+//     },
+//     {
+//       "previousOutput": {
+//         "txHash": "0xea01cd5221612da1ee70aef6feab6b89d0fe37da83ee49a38df4c63219e50c40",
+//         "index": "0x1"
+//       },
+//       "since": "0x0"
+//     }
+//   ],
+//   "outputs": [
+//     {
+//       "lock": {
+//         "codeHash": "0x61ca7a4796a4eb19ca4f0d065cb9b10ddcf002f10f7cbb810c706cb6bb5c3248",
+//         "hashType": "type",
+//         "args": "0x02000000b0db20ed4df4d5b049c7ab0118b15ae9259af8bd8b1e9883908d9b5b280a1584"
+//       },
+//       "type": {
+//         "codeHash": "0x25c29dc317811a6f6f3985a7a9ebc4838bd388d19d0feeecf0bcd60f6c0975bb",
+//         "hashType": "type",
+//         "args": "0xedade1e77f5bfc97fe7c3db081850d363c7539e75242f1f883e7ed49d4cf5bc1"
+//       },
+//       "capacity": "0x5e9f53e00"
+//     },
+//     {
+//       "lock": {
+//         "codeHash": "0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8",
+//         "hashType": "type",
+//         "args": "0x76ec68329f6295ef4c850976115c2926d210828b"
+//       },
+//       "type": {
+//         "codeHash": "0x25c29dc317811a6f6f3985a7a9ebc4838bd388d19d0feeecf0bcd60f6c0975bb",
+//         "hashType": "type",
+//         "args": "0xedade1e77f5bfc97fe7c3db081850d363c7539e75242f1f883e7ed49d4cf5bc1"
+//       },
+//       "capacity": "0x35458af00"
+//     },
+//     {
+//       "lock": {
+//         "codeHash": "0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8",
+//         "hashType": "type",
+//         "args": "0x76ec68329f6295ef4c850976115c2926d210828b"
+//       },
+//       "capacity": "0x4c22b7c9ee"
+//     }
+//   ],
+//   "outputsData": [
+//     "0x00aea68f020000000000000000000000",
+//     "0x00782c141b7507000000000000000000",
+//     "0x"
+//   ],
+//   "witnesses": [
+//     "0x",
+//     "0x"
+//   ]
+// }

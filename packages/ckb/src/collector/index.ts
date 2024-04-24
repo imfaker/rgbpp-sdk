@@ -122,6 +122,7 @@ export class Collector {
         since: '0x0',
       });
       sumInputsCapacity = sumInputsCapacity + BigInt(cell.output.capacity);
+      console.log('cell.outputData.cap', BigInt(cell.output.capacity).toString(10));
       sumAmount += leToU128(cell.outputData);
       if (sumAmount >= needAmount && !isRgbppLock) {
         break;

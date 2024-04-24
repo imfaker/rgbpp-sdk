@@ -11,7 +11,7 @@ const BTC_TEST_PRIVATE_KEY = '00000000000000000000000000000000000000000000000000
 // API docs: https://btc-assets-api.testnet.mibao.pro/docs
 const BTC_ASSETS_API_URL = 'https://btc-assets-api.testnet.mibao.pro';
 // https://btc-assets-api.testnet.mibao.pro/docs/static/index.html#/Token/post_token_generate
-const BTC_ASSETS_TOKEN = '';
+const BTC_ASSETS_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJodHRwczovL2J0Yy10ZXN0LmFwcCIsImF1ZCI6ImJ0Yy1hc3NldHMtYXBpLnRlc3RuZXQubWliYW8ucHJvIiwianRpIjoiNDViNTMzNTMtODc2Mi00ZGNiLWJmZGEtYTljNjQzOWE5MTc2IiwiaWF0IjoxNzEzMjY1OTUyfQ.J2KYRvzQB1JMM49JajerjrmX3DSAfkKlTo2shO_5_hE';
 
 const BTC_ASSETS_ORIGIN = 'https://btc-test.app';
 

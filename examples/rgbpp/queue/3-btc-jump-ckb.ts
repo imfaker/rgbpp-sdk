@@ -3,6 +3,8 @@ import {
   Collector,
   genBtcJumpCkbVirtualTx,
   buildRgbppLockArgs,
+  genBtcTimeLockScript,
+  Script
 } from '@rgbpp-sdk/ckb';
 import {
   sendRgbppUtxos,
@@ -12,17 +14,31 @@ import {
   ECPair,
 } from '@rgbpp-sdk/btc';
 import { BtcAssetsApi } from '@rgbpp-sdk/service'
+import { addressToScript, getTransactionSize } from '@nervosnetwork/ckb-sdk-utils';
 
 // CKB SECP256K1 private key
-const CKB_TEST_PRIVATE_KEY = '0x0000000000000000000000000000000000000000000000000000000000000001';
+// const CKB_TEST_PRIVATE_KEY = '0x0000000000000000000000000000000000000000000000000000000000000001';
+const CKB_TEST_PRIVATE_KEY = '0x0000000000000000000000000000000000000000000000000000000000000009';
 // BTC SECP256K1 private key
-const BTC_TEST_PRIVATE_KEY = '0000000000000000000000000000000000000000000000000000000000000001';
+// const BTC_TEST_PRIVATE_KEY = '0000000000000000000000000000000000000000000000000000000000000001';
+// //tb1qp05v86s8877ncw4ck3jqmd7elqrxyu0jj2rver的私钥
+// const BTC_TEST_PRIVATE_KEY = '41bf020676a1d94c82116b285fe8c15120dbb902d2ecaf88774aeca602960ae8';
+
+//tb1qcsyly4h8zj6w7pq4lyuwguczq08lr342dyya5f私钥
+const BTC_TEST_PRIVATE_KEY = '722de2d3fbcbb5e7970a19cd634397b67932a9e9b460ec00040506fab5b0768c';
+
+
 // API docs: https://btc-assets-api.testnet.mibao.pro/docs
 const BTC_ASSETS_API_URL = 'https://btc-assets-api.testnet.mibao.pro';
 // https://btc-assets-api.testnet.mibao.pro/docs/static/index.html#/Token/post_token_generate
-const BTC_ASSETS_TOKEN = '';
+const BTC_ASSETS_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJteS1hcHAiLCJhdWQiOiJidGMtYXNzZXRzLWFwaS50ZXN0bmV0Lm1pYmFvLnBybyIsImp0aSI6IjVjOWE5YzUzLTRmZjQtNDEyYi1iZTU0LTZmYTMzMmNiZjk2YSIsImlhdCI6MTcxMzQyNzgyOH0.9awJlqeh2l6XuW4eJ1OA0zccAaTcHY4iVftofB068Qk';
 
-const BTC_ASSETS_ORIGIN = 'https://btc-test.app';
+const xudtType: CKBComponents.Script = {
+  codeHash: '0x25c29dc317811a6f6f3985a7a9ebc4838bd388d19d0feeecf0bcd60f6c0975bb',
+  hashType: 'type',
+  args: '0xedade1e77f5bfc97fe7c3db081850d363c7539e75242f1f883e7ed49d4cf5bc1',
+};
+const BTC_ASSETS_ORIGIN = 'https:btc-assets-api.testnet.mibao.pro';
 
 interface Params {
   rgbppLockArgsList: string[];
@@ -52,11 +68,21 @@ const jumpFromBtcToCkb = async ({ rgbppLockArgsList, toCkbAddress, transferAmoun
   const service = BtcAssetsApi.fromToken(BTC_ASSETS_API_URL, BTC_ASSETS_TOKEN, BTC_ASSETS_ORIGIN);
   const source = new DataSource(service, networkType);
 
-  const xudtType: CKBComponents.Script = {
-    codeHash: '0x25c29dc317811a6f6f3985a7a9ebc4838bd388d19d0feeecf0bcd60f6c0975bb',
-    hashType: 'type',
-    args: '0x1ba116c119d1cfd98a53e9d1a615cf2af2bb87d95515c9d217d367054cfc696b',
-  };
+  // const xudtType: CKBComponents.Script = {
+  //   codeHash: '0x25c29dc317811a6f6f3985a7a9ebc4838bd388d19d0feeecf0bcd60f6c0975bb',
+  //   hashType: 'type',
+  //   args: '0x1ba116c119d1cfd98a53e9d1a615cf2af2bb87d95515c9d217d367054cfc696b',
+  // };
+  // const toLock = addressToScript(toCkbAddress);
+  // console.log(JSON.stringify(toLock, null, 2))
+  // // const ss = genBtcTimeLockScript(toLock, isMainnet);
+  // const stolock = serializeScript(toLock);
+  // const sunpakctolock = Script.unpack(stolock);
+  // console.log(JSON.stringify(stolock, null, 2))
+  // console.log(JSON.stringify(sunpakctolock, null, 2))
+
+  // const sunpakcxudtType = serializeScript(xudtType);
+  // console.log(JSON.stringify(sunpakcxudtType, null, 2))
 
   const ckbVirtualTxResult = await genBtcJumpCkbVirtualTx({
     collector,
@@ -66,14 +92,14 @@ const jumpFromBtcToCkb = async ({ rgbppLockArgsList, toCkbAddress, transferAmoun
     toCkbAddress,
     isMainnet,
   });
-
+  console.log(JSON.stringify(ckbVirtualTxResult, null, 2))
   const { commitment, ckbRawTx } = ckbVirtualTxResult;
 
   // Send BTC tx
   const psbt = await sendRgbppUtxos({
     ckbVirtualTx: ckbRawTx,
     commitment,
-    tos: [btcAddress!], 
+    tos: [btcAddress!],
     ckbCollector: collector,
     from: btcAddress!,
     source,
@@ -110,9 +136,9 @@ const jumpFromBtcToCkb = async ({ rgbppLockArgsList, toCkbAddress, transferAmoun
 jumpFromBtcToCkb({
   // If the `3-btc-transfer.ts` has been executed, the BTC txId should be the new generated BTC txId by the `3-btc-transfer.ts`
   // Otherwise the BTC txId should be same as the the BTC txId of the `2-ckb-jump-btc.ts`
-  rgbppLockArgsList: [buildRgbppLockArgs(1, '6edd4b9327506fab09fb9a0f5e5f35136a6a94bd4c9dd79af04921618fa6c800')],
-  toCkbAddress: 'ckt1qrfrwcdnvssswdwpn3s9v8fp87emat306ctjwsm3nmlkjg8qyza2cqgqq9kxr7vy7yknezj0vj0xptx6thk6pwyr0sxamv6q',
+  rgbppLockArgsList: [buildRgbppLockArgs(2, '4d63f7e7ec3704bfa9a07395de274223c3c7b7b9a160406d10c1b4cbd565fd9f')],
+  toCkbAddress: 'ckt1qyq8dmrgx20k9900fjzsjas3ts5jd5sss29suvrp5f',
   // To simplify, keep the transferAmount the same as 2-ckb-jump-btc
-  transferAmount: BigInt(800_0000_0000),
+  transferAmount: BigInt(150_0000_0000),
 });
 
