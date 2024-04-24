@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { sha256 } from 'js-sha256';
-import { hexToBytes } from '@nervosnetwork/ckb-sdk-utils';
+import { addressToScript, hexToBytes } from '@nervosnetwork/ckb-sdk-utils';
 import {
   btcTxIdFromBtcTimeLockArgs,
   buildPreLockArgs,
@@ -14,10 +14,12 @@ import {
   lockScriptFromBtcTimeLockArgs,
   replaceLockArgsWithRealBtcTxId,
   transformSpvProof,
+  throwErrorWhenTxInputsExceeded,
 } from './rgbpp';
 import { RgbppCkbVirtualTx } from '../types';
 import { calculateUdtCellCapacity } from './ckb-tx';
-import { InputsOrOutputsLenError } from '../error';
+import { InputsOrOutputsLenError, RgbppCkbTxInputsExceededError } from '../error';
+import { remove0x } from './hex';
 
 describe('rgbpp tests', () => {
   it('sha256', () => {
@@ -133,6 +135,22 @@ describe('rgbpp tests', () => {
     );
   });
 
+  it('genBtcTimeLockArgs3', () => {
+    const toAddress =
+      'ckt1qrfrwcdnvssswdwpn3s9v8fp87emat306ctjwsm3nmlkjg8qyza2cqgqq9kxr7vy7yknezj0vj0xptx6thk6pwyr0sxamv6q';
+    const btcTxId = 'd44e5f02bc28394b97f6d584cf9e43ba731cc049655599cbb3c1274789bf1372';
+    const after = 0x6;
+    const args = genBtcTimeLockArgs(addressToScript(toAddress), btcTxId, after);
+    expect(args).toBe(
+      '0x7f000000100000005b0000005f0000004b000000100000003000000031000000d23761b364210735c19c60561d213fb3beae2fd6172743719eff6920e020baac011600000000016c61f984f12d3c8a4f649e60acda5deda0b8837c060000007213bf894727c1b3cb99556549c01c73ba439ecf84d5f6974b3928bc025f4ed4',
+    );
+    const toLock = lockScriptFromBtcTimeLockArgs(args);
+    expect(toLock.args).toBe('0x00016c61f984f12d3c8a4f649e60acda5deda0b8837c');
+
+    const txId = btcTxIdFromBtcTimeLockArgs(args);
+    expect(remove0x(txId)).toBe(btcTxId);
+  });
+
   it('genBtcTimeLockScript', () => {
     const lock: CKBComponents.Script = {
       args: '0xc0a45d9d7c024adcc8076c18b3f07c08de7c42120cdb7e6cbc05a28266b15b5f',
@@ -218,7 +236,7 @@ describe('rgbpp tests', () => {
       '0x01000000047b6894a0b7a4d7a73b1503d1ae35c51fc5fa6306776dcf22b1fb3daaa32a29',
       '0x010000002f061a27abcab1d1d146514ffada6a83c0d974fe0813835ad8be2a39a6b1a6ee',
     ]);
-    expect(actual).toBe(9000);
+    expect(actual).toBe(15000);
   });
 
   it('encodeRgbppTokenInfo', () => {
@@ -229,5 +247,16 @@ describe('rgbpp tests', () => {
   it('calculateRgbppTokenInfoSize', () => {
     const actual = calculateRgbppTokenInfoSize({ decimal: 8, name: 'RGBPP Test Token', symbol: 'RTT' });
     expect(actual).toBe(BigInt(22));
+  });
+
+  it('throwErrorWhenTxInputsExceeded', () => {
+    try {
+      throwErrorWhenTxInputsExceeded(10);
+    } catch (error) {
+      if (error instanceof RgbppCkbTxInputsExceededError) {
+        expect(109).toBe(error.code);
+        expect('Please ensure the tx inputs do not exceed 10').toBe(error.message);
+      }
+    }
   });
 });

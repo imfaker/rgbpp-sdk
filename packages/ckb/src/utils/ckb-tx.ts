@@ -1,6 +1,13 @@
 import { calculateTransactionFee as calculateTxFee } from '@nervosnetwork/ckb-sdk-utils/lib/calculateTransactionFee';
+import { RawClusterData, packRawClusterData, SporeDataProps, packRawSporeData } from '@spore-sdk/core';
 import { remove0x, u64ToLe } from './hex';
-import { CKB_UNIT, UNLOCKABLE_LOCK_SCRIPT, getXudtTypeScript } from '../constants';
+import {
+  CKB_UNIT,
+  UNLOCKABLE_LOCK_SCRIPT,
+  getClusterTypeScript,
+  getSporeTypeScript,
+  getXudtTypeScript,
+} from '../constants';
 import { Hex, RgbppTokenInfo } from '../types';
 import { PERSONAL, blake2b, hexToBytes, serializeInput, serializeScript } from '@nervosnetwork/ckb-sdk-utils';
 import { encodeRgbppTokenInfo, genBtcTimeLockScript } from './rgbpp';
@@ -11,14 +18,27 @@ export const calculateTransactionFee = (txSize: number, feeRate?: bigint): bigin
   return BigInt(fee);
 };
 
-export const isTypeAssetSupported = (type: CKBComponents.Script, isMainnet: boolean): boolean => {
-  const xudtType = getXudtTypeScript(isMainnet);
-  const typeAsset = {
+export const isUDTTypeSupported = (type: CKBComponents.Script, isMainnet: boolean): boolean => {
+  const xudtType = serializeScript(getXudtTypeScript(isMainnet));
+  const typeAsset = serializeScript({
     ...type,
     args: '',
-  };
-  const isXudt = serializeScript(xudtType) === serializeScript(typeAsset);
-  return isXudt;
+  });
+  return xudtType === typeAsset;
+};
+
+export const isClusterSporeTypeSupported = (type: CKBComponents.Script, isMainnet: boolean): boolean => {
+  const sporeType = serializeScript(getSporeTypeScript(isMainnet));
+  const typeAsset = serializeScript({
+    ...type,
+    args: '',
+  });
+  const clusterType = serializeScript(getClusterTypeScript(isMainnet));
+  return sporeType === typeAsset || clusterType === typeAsset;
+};
+
+export const isTypeAssetSupported = (type: CKBComponents.Script, isMainnet: boolean): boolean => {
+  return isUDTTypeSupported(type, isMainnet) || isClusterSporeTypeSupported(type, isMainnet);
 };
 
 // The BTC_TIME_CELL_INCREASED_SIZE is related to the specific lock script.
@@ -82,4 +102,29 @@ export const generateUniqueTypeArgs = (firstInput: CKBComponents.CellInput, firs
   s.update(input);
   s.update(hexToBytes(`0x${u64ToLe(BigInt(firstOutputIndex))}`));
   return `0x${s.digest('hex').slice(0, 40)}`;
+};
+
+// https://docs.spore.pro/recipes/Create/create-private-cluster
+// Minimum occupied capacity and 1 ckb for transaction fee
+export const calculateRgbppClusterCellCapacity = (clusterData: RawClusterData): bigint => {
+  const clusterDataSize = packRawClusterData(clusterData).length;
+  const clusterTypeSize = 32 + 1 + 32;
+  const cellSize = RGBPP_LOCK_SIZE + clusterTypeSize + 8 + clusterDataSize;
+  return BigInt(cellSize + 1) * CKB_UNIT;
+};
+
+// https://docs.spore.pro/recipes/Create/create-clustered-spore
+// For simplicity, we keep the capacity of the RGBPP cell the same as the BTC time cell
+// minimum occupied capacity and 1 ckb for transaction fee
+/**
+ * rgbpp_spore_cell:
+    lock: rgbpp_lock
+    type: spore_type
+    data: sporeData
+ */
+export const calculateRgbppSporeCellCapacity = (sporeData: SporeDataProps): bigint => {
+  const sporeDataSize = packRawSporeData(sporeData).length;
+  const sporeTypeSize = 32 + 1 + 32;
+  const cellSize = RGBPP_LOCK_SIZE + sporeTypeSize + 8 + sporeDataSize + BTC_TIME_CELL_INCREASED_SIZE;
+  return BigInt(cellSize + 1) * CKB_UNIT;
 };

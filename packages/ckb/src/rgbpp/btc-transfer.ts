@@ -7,31 +7,20 @@ import {
   RgbppCkbVirtualTx,
 } from '../types/rgbpp';
 import { blockchain } from '@ckb-lumos/base';
-import {
-  InputsCapacityNotEnoughError,
-  NoLiveCellError,
-  NoRgbppLiveCellError,
-  TypeAssetNotSupportedError,
-} from '../error';
-import {
-  append0x,
-  calculateRgbppCellCapacity,
-  calculateTransactionFee,
-  isTypeAssetSupported,
-  u128ToLe,
-} from '../utils';
+import { NoLiveCellError, NoRgbppLiveCellError, TypeAssetNotSupportedError } from '../error';
+import { append0x, calculateRgbppCellCapacity, calculateTransactionFee, isUDTTypeSupported, u128ToLe } from '../utils';
 import {
   buildPreLockArgs,
   calculateCommitment,
   compareInputs,
   estimateWitnessSize,
   genRgbppLockScript,
+  throwErrorWhenTxInputsExceeded,
 } from '../utils/rgbpp';
 import { Hex, IndexerCell } from '../types';
 import {
   MAX_FEE,
   MIN_CAPACITY,
-  RGBPP_TX_WITNESS_MAX_SIZE,
   RGBPP_WITNESS_PLACEHOLDER,
   SECP256K1_WITNESS_LOCK_SIZE,
   getRgbppLockConfigDep,
@@ -57,7 +46,7 @@ import signWitnesses from '@nervosnetwork/ckb-sdk-core/lib/signWitnesses';
  * @param transferAmount The XUDT amount to be transferred, if the noMergeOutputCells is true, the transferAmount will be ignored
  * @param isMainnet
  * @param noMergeOutputCells The noMergeOutputCells indicates whether the CKB outputs need to be merged. By default, the outputs will be merged.
- * @param witnessLockPlaceholderSize The WitnessArgs.lock placeholder bytes array size and the default value is 3000(It can make most scenarios work properly)
+ * @param witnessLockPlaceholderSize The WitnessArgs.lock placeholder bytes array size and the default value is 5000
  * @param ckbFeeRate The CKB transaction fee rate, default value is 1100
  */
 export const genBtcTransferCkbVirtualTx = async ({
@@ -72,7 +61,7 @@ export const genBtcTransferCkbVirtualTx = async ({
 }: BtcTransferVirtualTxParams): Promise<BtcTransferVirtualTxResult> => {
   const xudtType = blockchain.Script.unpack(xudtTypeBytes) as CKBComponents.Script;
 
-  if (!isTypeAssetSupported(xudtType, isMainnet)) {
+  if (!isUDTTypeSupported(xudtType, isMainnet)) {
     throw new TypeAssetNotSupportedError('The type script asset is not supported now');
   }
   // rgbppLockArgsList =【return `0x${u32ToLe(outIndex)}${remove0x(reverseHex(btcTxId))}`】;
@@ -116,6 +105,9 @@ export const genBtcTransferCkbVirtualTx = async ({
       needAmount: transferAmount,
     });
     inputs = collectResult.inputs;
+
+    throwErrorWhenTxInputsExceeded(inputs.length);
+
     sumInputsCapacity = collectResult.sumInputsCapacity;
 
     rgbppCells = rgbppCells.slice(0, inputs.length);
@@ -209,7 +201,7 @@ export const genBtcBatchTransferCkbVirtualTx = async ({
 }: BtcBatchTransferVirtualTxParams): Promise<BtcBatchTransferVirtualTxResult> => {
   const xudtType = blockchain.Script.unpack(xudtTypeBytes) as CKBComponents.Script;
 
-  if (!isTypeAssetSupported(xudtType, isMainnet)) {
+  if (!isUDTTypeSupported(xudtType, isMainnet)) {
     throw new TypeAssetNotSupportedError('The type script asset is not supported now');
   }
 
@@ -241,6 +233,8 @@ export const genBtcBatchTransferCkbVirtualTx = async ({
     liveCells: rgbppCells,
     needAmount: sumTransferAmount,
   });
+
+  throwErrorWhenTxInputsExceeded(inputs.length);
 
   // Rgbpp change cell index, if it is -1, it means there is no change rgbpp cell
   let rgbppChangeOutIndex = -1;

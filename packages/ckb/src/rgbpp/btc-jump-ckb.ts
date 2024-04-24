@@ -6,12 +6,13 @@ import {
   calculateRgbppCellCapacity,
   calculateTransactionFee,
   isLockArgsSizeExceeded,
-  isTypeAssetSupported,
+  isUDTTypeSupported,
   u128ToLe,
 } from '../utils';
 import {
   buildPreLockArgs,
   calculateCommitment,
+  throwErrorWhenTxInputsExceeded,
   compareInputs,
   estimateWitnessSize,
   genBtcTimeLockScript,
@@ -33,7 +34,7 @@ import { addressToScript, getTransactionSize } from '@nervosnetwork/ckb-sdk-util
  * @param xudtTypeBytes The serialized hex string of the XUDT type script
  * @param rgbppLockArgsList The rgbpp assets cell lock script args array whose data structure is: out_index | bitcoin_tx_id
  * @param transferAmount The XUDT amount to be transferred
- * @param witnessLockPlaceholderSize The WitnessArgs.lock placeholder bytes array size and the default value is 3000(It can make most scenarios work properly)
+ * @param witnessLockPlaceholderSize The WitnessArgs.lock placeholder bytes array size and the default value is 5000
  * @param ckbFeeRate The CKB transaction fee rate, default value is 1100
  * @param isMainnet
  */
@@ -49,7 +50,7 @@ export const genBtcJumpCkbVirtualTx = async ({
   const isMainnet = toCkbAddress.startsWith('ckb');
   const xudtType = blockchain.Script.unpack(xudtTypeBytes) as CKBComponents.Script;
 
-  if (!isTypeAssetSupported(xudtType, isMainnet)) {
+  if (!isUDTTypeSupported(xudtType, isMainnet)) {
     throw new TypeAssetNotSupportedError('The type script asset is not supported now');
   }
 
@@ -68,6 +69,8 @@ export const genBtcJumpCkbVirtualTx = async ({
     liveCells: rgbppCells,
     needAmount: transferAmount,
   });
+
+  throwErrorWhenTxInputsExceeded(inputs.length);
 
   const rpbppCellCapacity = calculateRgbppCellCapacity(xudtType);
   const outputsData = [append0x(u128ToLe(transferAmount))];
