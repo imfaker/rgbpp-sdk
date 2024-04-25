@@ -1,6 +1,8 @@
 import { AddressPrefix, privateKeyToAddress, serializeScript } from '@nervosnetwork/ckb-sdk-utils';
 import { genCkbJumpBtcVirtualTx, Collector, getSecp256k1CellDep, buildRgbppLockArgs } from '@rgbpp-sdk/ckb';
 
+import { findSuitablUnspentUtxoForCKBJumpBTC } from './findUtxo'
+
 // CKB SECP256K1 private key
 // const CKB_TEST_PRIVATE_KEY = '0x0000000000000000000000000000000000000000000000000000000000000001';
 
@@ -40,7 +42,7 @@ const jumpFromCkbToBtc = async ({ outIndex, btcTxId }: { outIndex: number; btcTx
     fromCkbAddress: address,
     toRgbppLockArgs,
     xudtTypeBytes: serializeScript(xudtType),
-    transferAmount: BigInt(150_0000_0000),
+    transferAmount: BigInt(120_0000_0000),
     witnessLockPlaceholderSize: 1000
   });
   console.log(`ckbRawTx = \n ${JSON.stringify(ckbRawTx, null, 2)}`);
@@ -64,13 +66,18 @@ const jumpFromCkbToBtc = async ({ outIndex, btcTxId }: { outIndex: number; btcTx
 //   btcTxId: 'bef3e7aef40fb620580fd7d693444e1fef3ffb1828931fa287c1ddc91f7c3cef',
 // });
 
+async function test() {
+  const utxo = await findSuitablUnspentUtxoForCKBJumpBTC('tb1qphzk7ksyhayxk2assnl9mmh7f3fwmdgxssn0jl')
+  if (utxo != undefined) {
+    jumpFromCkbToBtc({
+      outIndex: utxo.vout,
+      btcTxId: utxo.txid,
+    });
+  }
 
+}
+test()
 
-
-jumpFromCkbToBtc({
-  outIndex: 1,
-  btcTxId: '0da21986bfa46b38f903c3d9aac9bdb56a23e090369747d04abc7adcf505f760',
-});
 
 //已使用
 // jumpFromCkbToBtc({

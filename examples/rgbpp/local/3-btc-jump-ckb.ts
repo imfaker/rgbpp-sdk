@@ -94,7 +94,8 @@ const jumpFromBtcToCkb = async ({ rgbppLockArgsList, toCkbAddress, transferAmoun
     ckbCollector: collector,
     from: btcAddress!,
     source,
-    feeRate: 80
+    feeRate: 60,
+    minUtxoSatoshi: 1200
   });
   psbt.signAllInputs(keyPair);
   psbt.finalizeAllInputs();
@@ -138,6 +139,8 @@ jumpFromBtcToCkb({
   // If the `3-btc-transfer.ts` has been executed, the BTC txId should be the new generated BTC txId by the `3-btc-transfer.ts`
   // Otherwise the BTC txId should be same as the the BTC txId of the `2-ckb-jump-btc.ts`
   rgbppLockArgsList: [buildRgbppLockArgs(1, '49ca5ac85c320edb891c6ae4cb8639bf7a90075ccd2d0bc0a1191e88d21be1ea')],
+
+  // ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqtka35r98mzjhh5epgfwcg4c2fx6ggg9zcz2f9mz == ckt1qyq8dmrgx20k9900fjzsjas3ts5jd5sss29suvrp5f
   toCkbAddress: 'ckt1qyq8dmrgx20k9900fjzsjas3ts5jd5sss29suvrp5f',
   // To simplify, keep the transferAmount the same as 2-ckb-jump-btc
   transferAmount: BigInt(150_0000_0000),

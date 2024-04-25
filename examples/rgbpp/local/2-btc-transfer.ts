@@ -4,6 +4,7 @@ import {
   appendCkbTxWitnesses,
   buildRgbppLockArgs,
   genBtcTransferCkbVirtualTx,
+  genRgbppLockScript,
   sendCkbTx,
   updateCkbTxWithRealBtcTxId,
 } from '@rgbpp-sdk/ckb';
@@ -12,6 +13,7 @@ import {
   sendRgbppUtxos, DataSource, ECPair, bitcoin, NetworkType
 } from '@rgbpp-sdk/btc';
 import { BtcAssetsApi, BtcAssetsApiError } from '@rgbpp-sdk/service';
+import { json } from 'stream/consumers';
 
 // CKB SECP256K1 private key
 // const CKB_TEST_PRIVATE_KEY = '0x0000000000000000000000000000000000000000000000000000000000000001';
@@ -21,13 +23,13 @@ const CKB_TEST_PRIVATE_KEY = '0x000000000000000000000000000000000000000000000000
 
 //tb1qp05v86s8877ncw4ck3jqmd7elqrxyu0jj2rver的私钥
 // const BTC_TEST_PRIVATE_KEY = '41bf020676a1d94c82116b285fe8c15120dbb902d2ecaf88774aeca602960ae8';
-//tb1qphzk7ksyhayxk2assnl9mmh7f3fwmdgxssn0jl的私钥
+// //tb1qphzk7ksyhayxk2assnl9mmh7f3fwmdgxssn0jl的私钥
 // const BTC_TEST_PRIVATE_KEY = '20339278b0184ecf7c94818f8eac09d9a60155f2f7d3b8c94ed330f51239b723';
 
 // //tb1qwgjl7m2llzrvrplpt8tt2d5avj32rm3crhy5l4私钥
 // const BTC_TEST_PRIVATE_KEY = '5b7cfc7050e83b125522ce637327f81d7f19114985d12c8bfb64206abe085d96';
 
-//tb1qwgjl7m2llzrvrplpt8tt2d5avj32rm3crhy5l4私钥
+//tb1qcsyly4h8zj6w7pq4lyuwguczq08lr342dyya5f私钥
 const BTC_TEST_PRIVATE_KEY = '722de2d3fbcbb5e7970a19cd634397b67932a9e9b460ec00040506fab5b0768c';
 
 
@@ -68,39 +70,57 @@ const transferRgbppOnBtc = async ({ rgbppLockArgsList, toBtcAddress, transferAmo
     network,
   });
 
-  console.log('btc address: ', btcAddress);
+  console.log(`from btcAddress = ${btcAddress}`)
+  console.log(`toBtcAddress = ${toBtcAddress}`)
 
   const networkType = isMainnet ? NetworkType.MAINNET : NetworkType.TESTNET;
   const service = BtcAssetsApi.fromToken(BTC_ASSETS_API_URL, BTC_ASSETS_TOKEN, BTC_ASSETS_ORIGIN);
   const source = new DataSource(service, networkType);
+
+  const recommonandFee = source.getRecommendedFeeRates();
+  console.log(`recommonandFee = ${JSON.stringify(recommonandFee, null, 2)}`)
 
   // const xudtType: CKBComponents.Script = {
   //   codeHash: '0x25c29dc317811a6f6f3985a7a9ebc4838bd388d19d0feeecf0bcd60f6c0975bb',
   //   hashType: 'type',
   //   args: '0x1ba116c119d1cfd98a53e9d1a615cf2af2bb87d95515c9d217d367054cfc696b',
   // };
+  // const rgbppLocks = rgbppLockArgsList.map((args) => genRgbppLockScript(args, isMainnet));
+  // console.log(`rgbppLocks = ${JSON.stringify(rgbppLocks, null, 2)}`)
+  // const cells = await collector.getCells({ lock: rgbppLocks[0], type: xudtType });
+  // console.log(`cells = ${JSON.stringify(cells, null, 2)}`)
 
+  // return
   const ckbVirtualTxResult = await genBtcTransferCkbVirtualTx({
     collector,
     rgbppLockArgsList,
     xudtTypeBytes: serializeScript(xudtType),
     transferAmount,
     isMainnet,
+    ckbFeeRate: BigInt(1500)
   });
   console.log(JSON.stringify(ckbVirtualTxResult, null, 2))
-  console.log(`toBtcAddress = ${toBtcAddress}`)
-  console.log(`btcAddress = ${btcAddress}`)
-  const { commitment, ckbRawTx } = ckbVirtualTxResult;
-  // console.log(JSON.stringify(source))
+  // return
+
+  const { commitment, ckbRawTx, needPaymasterCell } = ckbVirtualTxResult;
+
+  // const paymasterInfo = needPaymasterCell ? await service.getRgbppPaymasterInfo() : null;
+  // const paymasterAddress = paymasterInfo?.btc_address ?? '';
+  // console.log(JSON.stringify(paymasterInfo, null, 2))
+  // const paymaster = { address: paymasterAddress, value: paymasterInfo?.fee ?? 7000 }
+  // console.log(JSON.stringify(paymaster, null, 2))
+  // return
   // Send BTC tx
   const psbt = await sendRgbppUtxos({
     ckbVirtualTx: ckbRawTx,
+    // paymaster: paymaster,
     commitment,
     tos: [toBtcAddress],
     ckbCollector: collector,
     from: btcAddress!,
     source,
-    feeRate: 80
+    feeRate: 60,
+    minUtxoSatoshi: 1200
   });
   psbt.signAllInputs(keyPair);
   psbt.finalizeAllInputs();
@@ -108,6 +128,8 @@ const transferRgbppOnBtc = async ({ rgbppLockArgsList, toBtcAddress, transferAmo
   const btcTx = psbt.extractTransaction();
   // Remove the witness from BTC tx for RGBPP unlock
   const btcTxBytes = transactionToHex(btcTx, false);
+  // console.log(`btcTx = ${JSON.stringify(btcTx, null, 2)}`);
+  // return
   const { txid: btcTxId } = await service.sendBtcTransaction(btcTx.toHex());
 
   console.log('BTC TxId: ', btcTxId);
@@ -157,7 +179,7 @@ transferRgbppOnBtc({
   //btc交易id 65ade8f84cc7ea6ed93619d613ef7e704eaab982d1ab25bbc589a689ff6eee5f
   // rgbppLockArgsList: [buildRgbppLockArgs(3, 'f7946882866c29e6772497b2a44da99b67d13cce313a2719e6cc8889e85b6f4f')],
 
-  rgbppLockArgsList: [buildRgbppLockArgs(1, 'c55b6951583a852e91838d4f17e6e28a36fe889c77c2b3819d0d33ff47c0ae5d')],
+  rgbppLockArgsList: [buildRgbppLockArgs(2, '36002640c7ed443fdec8af59172ed0b679928afdc72706e95ef473da13193864')],
 
 
   // rgbppLockArgsList: [buildRgbppLockArgs(1, '1af8356d09ac67b6cb922dafee1074a39143d69c520034523538834e88354221')],
@@ -172,7 +194,7 @@ transferRgbppOnBtc({
 
   // toBtcAddress: 'tb1q2cmznxp9a0z9jgc62l30x75uvk40swhd4nks2z',
   // To simplify, keep the transferAmount the same as 2-ckb-jump-btc
-  transferAmount: BigInt(150_0000_0000),
+  transferAmount: BigInt(30_0000_0000),
 });
 
 //私钥20339278b0184ecf7c94818f8eac09d9a60155f2f7d3b8c94ed330f51239b723

@@ -15,8 +15,11 @@ const CKB_TEST_PRIVATE_KEY = '0x000000000000000000000000000000000000000000000000
 
 //tb1qp05v86s8877ncw4ck3jqmd7elqrxyu0jj2rver的私钥
 // const BTC_TEST_PRIVATE_KEY = '41bf020676a1d94c82116b285fe8c15120dbb902d2ecaf88774aeca602960ae8';
-//tb1qphzk7ksyhayxk2assnl9mmh7f3fwmdgxssn0jl的私钥
-const BTC_TEST_PRIVATE_KEY = '20339278b0184ecf7c94818f8eac09d9a60155f2f7d3b8c94ed330f51239b723';
+// //tb1qphzk7ksyhayxk2assnl9mmh7f3fwmdgxssn0jl的私钥
+// const BTC_TEST_PRIVATE_KEY = '20339278b0184ecf7c94818f8eac09d9a60155f2f7d3b8c94ed330f51239b723';
+
+//tb1qcsyly4h8zj6w7pq4lyuwguczq08lr342dyya5f私钥
+const BTC_TEST_PRIVATE_KEY = '722de2d3fbcbb5e7970a19cd634397b67932a9e9b460ec00040506fab5b0768c';
 
 // API docs: https://btc-assets-api.testnet.mibao.pro/docs
 const BTC_ASSETS_API_URL = 'https://btc-assets-api.testnet.mibao.pro';
@@ -74,16 +77,26 @@ const transferRgbppOnBtc = async ({ rgbppLockArgsList, toBtcAddress, transferAmo
     isMainnet,
   });
   console.log('ckbVirtualTxResult =  ', JSON.stringify(ckbVirtualTxResult, null, 2));
-  const { commitment, ckbRawTx } = ckbVirtualTxResult;
+  const { commitment, ckbRawTx, needPaymasterCell } = ckbVirtualTxResult;
 
+
+  const paymasterInfo = needPaymasterCell ? await service.getRgbppPaymasterInfo() : null;
+  const paymasterAddress = paymasterInfo?.btc_address ?? '';
+  console.log(JSON.stringify(paymasterInfo, null, 2))
+  const paymaster = { address: paymasterAddress, value: paymasterInfo?.fee ?? 7000 }
+  console.log(JSON.stringify(paymaster, null, 2))
+  // return
   // Send BTC tx
   const psbt = await sendRgbppUtxos({
     ckbVirtualTx: ckbRawTx,
+    paymaster: paymaster,
     commitment,
     tos: [toBtcAddress],
     ckbCollector: collector,
     from: btcAddress!,
     source,
+    feeRate: 60,
+    minUtxoSatoshi: 1200
   });
   psbt.signAllInputs(keyPair);
   psbt.finalizeAllInputs();
@@ -119,10 +132,10 @@ const transferRgbppOnBtc = async ({ rgbppLockArgsList, toBtcAddress, transferAmo
 // Use your real BTC UTXO information on the BTC Testnet
 // rgbppLockArgs: outIndexU32 + btcTxId
 transferRgbppOnBtc({
-  rgbppLockArgsList: [buildRgbppLockArgs(2, 'fc26caf918795dc09dfd0e344bf6ab760ec5a46a3fb90d40ad2d6b789bf63085')],
+  rgbppLockArgsList: [buildRgbppLockArgs(2, 'bf6773e001a48611e612f8121dd60f9e89dadae84f39873d336da9117934aab2')],
   toBtcAddress: 'tb1pmmv2f6pytg3uf2kv2zj2l5pu8hshv0t58n529xfw7f83dset20kqd93kgu',
   // toBtcAddress: 'tb1qvt7p9g6mw70sealdewtfp0sekquxuru6j3gwmt',
   // To simplify, keep the transferAmount the same as 2-ckb-jump-btc
-  transferAmount: BigInt(150_0000_0000),
+  transferAmount: BigInt(30_0000_0000),
 });
 
