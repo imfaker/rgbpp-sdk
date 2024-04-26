@@ -27,7 +27,12 @@ export interface SendRgbppUtxosProps {
   onlyConfirmedUtxos?: boolean;
 }
 
-export async function sendRgbppUtxosBuilder(props: SendRgbppUtxosProps): Promise<{
+/**
+ * @deprecated Use createSendRgbppUtxosBuilder() API instead.
+ */
+export const sendRgbppUtxosBuilder = createSendRgbppUtxosBuilder;
+
+export async function createSendRgbppUtxosBuilder(props: SendRgbppUtxosProps): Promise<{
   builder: TxBuilder;
   feeRate: number;
   fee: number;
@@ -185,18 +190,21 @@ async function getMergedBtcOutputs(btcOutputs: InitOutput[], props: SendRgbppUtx
   // Add outputs
   merged.push(...btcOutputs);
 
-  // Add paymaster UTXO
-  const paymasterOutput = await props.source.getPaymasterOutput();
-  if (
-    paymasterOutput &&
-    props.paymaster &&
-    (paymasterOutput?.address !== props.paymaster.address || paymasterOutput?.value !== props.paymaster.value)
-  ) {
+  // Check paymaster info
+  const defaultPaymaster = await props.source.getPaymasterOutput();
+  const isPaymasterUnmatched =
+    defaultPaymaster?.address !== props.paymaster?.address || defaultPaymaster?.value !== props.paymaster?.value;
+  if (defaultPaymaster && props.paymaster && isPaymasterUnmatched) {
     throw new TxBuildError(ErrorCodes.PAYMASTER_MISMATCH);
   }
-  if (paymasterOutput || props.paymaster) {
+
+  // Add paymaster output
+  // TODO: can be more accurate if we compare the actual capacity of inputs & outputs
+  const paymaster = defaultPaymaster ?? props.paymaster;
+  const needPaymasterOutput = props.ckbVirtualTx.inputs.length < props.ckbVirtualTx.outputs.length;
+  if (paymaster && needPaymasterOutput) {
     merged.push({
-      ...(paymasterOutput ?? props.paymaster)!,
+      ...paymaster,
       fixed: true,
     });
   }
@@ -205,7 +213,6 @@ async function getMergedBtcOutputs(btcOutputs: InitOutput[], props: SendRgbppUtx
 }
 
 export async function sendRgbppUtxos(props: SendRgbppUtxosProps): Promise<bitcoin.Psbt> {
-  console.log('props', JSON.stringify(props, null, 2));
-  const { builder } = await sendRgbppUtxosBuilder(props);
+  const { builder } = await createSendRgbppUtxosBuilder(props);
   return builder.toPsbt();
 }
