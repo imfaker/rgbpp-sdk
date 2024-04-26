@@ -46,6 +46,7 @@ const issueXudt = async ({ xudtTotalAmount }: { xudtTotalAmount: bigint }) => {
     { minCapacity: MIN_CAPACITY },
   );
 
+  //xudt的type args就是发行人的脚本hash
   const xudtType: CKBComponents.Script = {
     ...getXudtTypeScript(isMainnet),
     args: append0x(scriptToHash(issueLock))

@@ -1,0 +1,117 @@
+import { AddressPrefix, addressToScript, getTransactionSize, privateKeyToAddress, scriptToHash } from '@nervosnetwork/ckb-sdk-utils';
+import { getSecp256k1CellDep, Collector, NoLiveCellError, calculateUdtCellCapacity, MAX_FEE, MIN_CAPACITY, getXudtTypeScript, append0x, getUniqueTypeScript, u128ToLe, encodeRgbppTokenInfo, getXudtDep, getUniqueTypeDep, SECP256K1_WITNESS_LOCK_SIZE, calculateTransactionFee, generateUniqueTypeArgs } from '@rgbpp-sdk/ckb';
+import { calculateXudtTokenInfoCellCapacity } from '@rgbpp-sdk/ckb/src/utils';
+import { XUDT_TOKEN_INFO } from './0-token-info';
+
+// CKB SECP256K1 private key
+// const CKB_TEST_PRIVATE_KEY = '0x0000000000000000000000000000000000000000000000000000000000000001';
+const CKB_TEST_PRIVATE_KEY = '0x0000000000000000000000000000000000000000000000000000000000000009';
+//ckt1qyq8dmrgx20k9900fjzsjas3ts5jd5sss29suvrp5f
+
+//tb1qcsyly4h8zj6w7pq4lyuwguczq08lr342dyya5f私钥
+const BTC_TEST_PRIVATE_KEY = '722de2d3fbcbb5e7970a19cd634397b67932a9e9b460ec00040506fab5b0768c';
+
+
+/**
+ * issueXudt can be used to issue xUDT assets with unique cell as token info cell.
+ * @param: xudtTotalAmount The xudtTotalAmount specifies the total amount of asset issuance
+ */
+const issueXudt = async ({ xudtTotalAmount }: { xudtTotalAmount: bigint }) => {
+    const collector = new Collector({
+        ckbNodeUrl: 'https://testnet.ckb.dev/rpc',
+        ckbIndexerUrl: 'https://testnet.ckb.dev/indexer',
+    });
+    const isMainnet = false;
+    //   const issueAddress = privateKeyToAddress(CKB_TEST_PRIVATE_KEY, {
+    //     prefix: isMainnet ? AddressPrefix.Mainnet : AddressPrefix.Testnet,
+    //   });
+
+
+
+    // const issueAddress = "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq2t6cpnyydhvrmumnjema4txyeaxt9vjsg0xjyju"
+    // const issueAddress = "ckt1qrfrwcdnvssswdwpn3s9v8fp87emat306ctjwsm3nmlkjg8qyza2cqgqqxz5wf8kuxhnmg33dy6eylg0n7xpkl6z7yjr3sff"
+
+
+    //   console.log('ckb address: ', issueAddress);
+    const issueAddress = "tb1qcsyly4h8zj6w7pq4lyuwguczq08lr342dyya5f"
+    const issueLock = addressToScript(issueAddress);
+
+    const emptyCells = await collector.getCells({
+        lock: issueLock,
+    });
+    if (!emptyCells || emptyCells.length === 0) {
+        throw new NoLiveCellError('The address has no empty cells');
+    }
+
+    const xudtCapacity = calculateUdtCellCapacity(issueLock);
+    const xudtInfoCapacity = calculateXudtTokenInfoCellCapacity(XUDT_TOKEN_INFO, issueLock);
+
+    let txFee = MAX_FEE;
+    const { inputs, sumInputsCapacity } = collector.collectInputs(
+        emptyCells,
+        xudtCapacity + xudtInfoCapacity,
+        txFee,
+        { minCapacity: MIN_CAPACITY },
+    );
+
+    //xudt的type args就是发行人的脚本hash
+    const xudtType: CKBComponents.Script = {
+        ...getXudtTypeScript(isMainnet),
+        args: append0x(scriptToHash(issueLock))
+    }
+    console.log('issueLock', issueLock)
+    console.log('xUDT type script', xudtType)
+
+    let changeCapacity = sumInputsCapacity - xudtCapacity - xudtInfoCapacity;
+    const outputs: CKBComponents.CellOutput[] = [
+        {
+            lock: issueLock,
+            type: xudtType,
+            capacity: append0x(xudtCapacity.toString(16)),
+        },
+        {
+            lock: issueLock,
+            type: {
+                ...getUniqueTypeScript(isMainnet),
+                args: generateUniqueTypeArgs(inputs[0], 1)
+            },
+            capacity: append0x(xudtInfoCapacity.toString(16)),
+        },
+        {
+            lock: issueLock,
+            capacity: append0x(changeCapacity.toString(16)),
+        },
+    ];
+    const totalAmount = xudtTotalAmount * BigInt(10 ** XUDT_TOKEN_INFO.decimal);
+    const outputsData = [append0x(u128ToLe(totalAmount)), encodeRgbppTokenInfo(XUDT_TOKEN_INFO), '0x'];
+
+    const emptyWitness = { lock: '', inputType: '', outputType: '' };
+    const witnesses = inputs.map((_, index) => (index === 0 ? emptyWitness : '0x'));
+
+    const cellDeps = [getSecp256k1CellDep(isMainnet), getUniqueTypeDep(isMainnet), getXudtDep(isMainnet)];
+
+    const unsignedTx = {
+        version: '0x0',
+        cellDeps,
+        headerDeps: [],
+        inputs,
+        outputs,
+        outputsData,
+        witnesses,
+    };
+    // console.info(`unsignedTx is ${JSON.stringify(unsignedTx)}`);
+    if (txFee === MAX_FEE) {
+        const txSize = getTransactionSize(unsignedTx) + SECP256K1_WITNESS_LOCK_SIZE;
+        const estimatedTxFee = calculateTransactionFee(txSize);
+        changeCapacity -= estimatedTxFee;
+        unsignedTx.outputs[unsignedTx.outputs.length - 1].capacity = append0x(changeCapacity.toString(16));
+    }
+
+    const signedTx = collector.getCkb().signTransaction(CKB_TEST_PRIVATE_KEY)(unsignedTx);
+    const txHash = await collector.getCkb().rpc.sendTransaction(signedTx, 'passthrough');
+
+    console.info(`xUDT asset has been issued and tx hash is ${txHash}`);
+};
+
+issueXudt({ xudtTotalAmount: BigInt(2100_0000) });
+
